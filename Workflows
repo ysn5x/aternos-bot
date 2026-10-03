@@ -1,0 +1,26 @@
+name: Aternos 7/24 KeepAlive
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # Her 5 dakikada bir otomatik çalışır
+  workflow_dispatch:
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodlari Depodan Al
+        uses: actions/checkout@v4
+
+      - name: Python Kurulumu
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Gerekli Kutuphaneleri Yukle
+        run: |
+          pip install mcstatus
+
+      - name: Botu Calistir
+        run: |
+          python main.py
