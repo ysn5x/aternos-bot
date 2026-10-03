@@ -1,0 +1,26 @@
+name: Aternos Ultra AI Bot
+
+on:
+  schedule:
+    - cron: '*/3 * * * *'
+  workflow_dispatch:
+
+jobs:
+  run-ai-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodlari Depodan Al
+        uses: actions/checkout@v4
+
+      - name: Node.js Kurulumu
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Paketleri Yukle (npm install)
+        run: |
+          npm install
+
+      - name: Yapay Zeka Botunu Baslat
+        run: |
+          node main.js
