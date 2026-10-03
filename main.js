@@ -6,7 +6,8 @@ const servers = [
     { host: 'norvexmc.aternos.me', port: 37993 }
 ];
 
-// Kimlik ve İsim Havuzu
+const BOT_PASSWORD = "AternosBotPassword123!";
+
 const namePrefixes = ['Pro', 'Dark', 'Shadow', 'Neo', 'Cyber', 'Mega', 'Ultra', 'Fast', 'Ghost', 'Legend', 'Kral', 'Reis'];
 const nameSuffixes = ['Gamer', 'Craft', 'Player', 'Boy', 'King', 'Lord', 'Ninja', 'Warrior', 'Hero', 'Master', 'Pro'];
 
@@ -17,7 +18,6 @@ function generateAIIdentity() {
     return `${prefix}${suffix}_${number}`;
 }
 
-// Tamamen Algoritmik ve Dinamik Ceyran Eden Chat Üretici (Kod içinde düz metin görünmez)
 function generateDynamicChat(botContext) {
     const subjects = ["bu sunucu", "aternos", "oyun", "survival", "bu harita", "spawn", "akşam", "lag"];
     const actions = ["çok iyi", "fenaymış", "sarıyor", "donuyor", "lag yapıyor", "10 numara", "değişikmiş"];
@@ -38,18 +38,21 @@ function generateDynamicChat(botContext) {
         () => `maden kazan var mı ${r3}?`
     ];
 
-    const selectedFunc = variations[Math.floor(Math.random() * variations.length)];
-    return selectedFunc();
+    return variations[Math.floor(Math.random() * variations.length)]();
 }
 
-// Akıcı Fare Hareketi (Smooth Mouse Matrisi)
 function aiSmoothLook(bot, targetYaw, targetPitch, durationMs) {
     return new Promise((resolve) => {
+        if (!bot || !bot.entity) return resolve();
         const startYaw = bot.entity.yaw;
         const startPitch = bot.entity.pitch;
         const startTime = Date.now();
 
         const interval = setInterval(() => {
+            if (!bot || !bot.entity) {
+                clearInterval(interval);
+                return resolve();
+            }
             const elapsed = Date.now() - startTime;
             const progress = Math.min(elapsed / durationMs, 1);
             
@@ -73,7 +76,7 @@ function aiSmoothLook(bot, targetYaw, targetPitch, durationMs) {
 function runAIBotInstance(serverInfo) {
     return new Promise((resolve) => {
         const botName = generateAIIdentity();
-        console.log(`[AI-CORE] ${serverInfo.host} için profil oluşturuldu -> ${botName}`);
+        console.log(`[AI-CORE] ${serverInfo.host} için yeni oturum başlatılıyor -> ${botName}`);
 
         const bot = mineflayer.createBot({
             host: serverInfo.host,
@@ -86,6 +89,8 @@ function runAIBotInstance(serverInfo) {
 
         let activeRoutines = [];
         let isSessionClosed = false;
+        let isRegisteredOrLogged = false;
+        let reconnectAttempts = 0;
 
         const closeSession = () => {
             if (isSessionClosed) return;
@@ -98,28 +103,43 @@ function runAIBotInstance(serverInfo) {
             resolve();
         };
 
-        const watchdog = setTimeout(closeSession, 45000);
+        // 35 saniye sonra güvenli çıkış
+        const watchdog = setTimeout(closeSession, 35000);
         activeRoutines.push(watchdog);
 
         bot.once('spawn', async () => {
-            console.log(`[AI-CORE] Oyuna giriş yapıldı. Dinamik motor aktif.`);
+            console.log(`[AI-CORE] Oyuna giriş yapıldı (${botName}). Güvenlik ve Kimlik Doğrulama aktif.`);
+
+            // Otomatik Login/Register ve Unban komut denemesi
+            setTimeout(() => {
+                if (!isRegisteredOrLogged) {
+                    try {
+                        bot.chat(`/register ${BOT_PASSWORD} ${BOT_PASSWORD}`);
+                        bot.chat(`/login ${BOT_PASSWORD}`);
+                        // Eğer önceki banlardan kalan bir engel durumu varsa otomatik unban/pardon komutları dener
+                        bot.chat(`/pardon ${botName}`);
+                        bot.chat(`/unban ${botName}`);
+                    } catch (e) {}
+                    isRegisteredOrLogged = true;
+                }
+            }, 2000);
 
             const movements = new Movements(bot);
             movements.canDig = false;
             bot.pathfinder.setMovements(movements);
 
-            // 1. Görüş / Bakış Döngüsü
+            // 1. Görüş Döngüsü
             const visionRoutine = setInterval(async () => {
-                if (isSessionClosed) return;
+                if (isSessionClosed || !bot.entity) return;
                 const dynamicYaw = bot.entity.yaw + (Math.random() - 0.5) * 3.14;
                 const dynamicPitch = (Math.random() - 0.5) * 0.6;
                 await aiSmoothLook(bot, dynamicYaw, dynamicPitch, 1000);
             }, 3500);
             activeRoutines.push(visionRoutine);
 
-            // 2. Otonom Hareket ve Reaksiyon Döngüsü
+            // 2. Hareket ve Chat Döngüsü
             const actionRoutine = setInterval(() => {
-                if (isSessionClosed) return;
+                if (isSessionClosed || !bot.entity) return;
 
                 const decisionRoll = Math.random();
                 if (decisionRoll > 0.4 && decisionRoll < 0.8) {
@@ -143,11 +163,9 @@ function runAIBotInstance(serverInfo) {
                     }
                 }
 
-                // Dinamik türetilen mesajları gönder
                 if (Math.random() > 0.5) {
-                    const generatedMessage = generateDynamicChat(bot);
                     try {
-                        bot.chat(generatedMessage);
+                        bot.chat(generateDynamicChat(bot));
                     } catch (e) {}
                 }
 
@@ -159,27 +177,32 @@ function runAIBotInstance(serverInfo) {
 
             }, 4000);
             activeRoutines.push(actionRoutine);
-
-            bot.on('chat', (username, message) => {
-                if (username === bot.username) return;
-                if (Math.random() > 0.7) {
-                    setTimeout(() => {
-                        try {
-                            bot.chat(`aleykümselam ${username}`);
-                        } catch (e) {}
-                    }, 2000);
-                }
-            });
         });
 
         bot.on('error', (err) => {
-            console.log(`[AI-ERROR] ${serverInfo.host} hata:`, err.message);
+            console.log(`[AI-ERROR] ${serverInfo.host} bağlantı hatası:`, err.message);
             closeSession();
         });
 
+        // KICK / BAN DURUMUNDA OTOMATİK YENİDEN BAĞLANMA (RETRY)
         bot.on('kicked', (reason) => {
-            console.log(`[AI-KICK] ${serverInfo.host} atıldı:`, reason);
-            closeSession();
+            console.log(`[AI-KICK/BAN] ${serverInfo.host} sunucusundan atıldı:`, reason);
+            
+            // Eğer maksimum 2 kez kick yerdiyse farklı bir isimle anında tekrar bağlanmayı dene
+            if (reconnectAttempts < 2) {
+                reconnectAttempts++;
+                console.log(`[RETRY] Farklı kimlikle yeniden bağlanma deneniyor (Deneme: ${reconnectAttempts})...`);
+                isSessionClosed = true;
+                activeRoutines.forEach(r => clearInterval(r));
+                try { bot.quit(); } catch (e) {}
+                
+                // 3 saniye bekleyip aynı sunucuya tekrar bağlan
+                setTimeout(() => {
+                    runAIBotInstance(serverInfo).then(resolve);
+                }, 3000);
+            } else {
+                closeSession();
+            }
         });
     });
 }
@@ -189,7 +212,7 @@ async function startAIPipeline() {
         await runAIBotInstance(server);
         await new Promise(r => setTimeout(r, 5000));
     }
-    console.log("[AI-CORE] Tüm işlemler tamamlandı.");
+    console.log("[AI-CORE] Tüm sunucu döngüleri tamamlandı.");
     process.exit(0);
 }
 
