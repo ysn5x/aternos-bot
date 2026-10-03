@@ -1,1 +1,8 @@
-
+{
+  "name": "aternos-ultra-bot",
+  "version": "1.0.0",
+  "dependencies": {
+    "mineflayer": "^4.20.0",
+    "mineflayer-pathfinder": "^2.4.3"
+  }
+}
